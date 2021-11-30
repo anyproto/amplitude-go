@@ -2,10 +2,10 @@
 package amplitude
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 const eventEndpoint = "https://api2.amplitude.com/2/httpapi"
@@ -58,6 +58,11 @@ type Event struct {
 	UserProperties     map[string]interface{} `json:"user_properties,omitempty"`
 }
 
+type EventRequest struct {
+	ApiKey string  `json:"api_key,omitempty"`
+	Events []Event `json:"events,omitempty"`
+}
+
 type Identify struct {
 	AppVersion         string                 `json:"app_version,omitempty"`
 	Carrier            string                 `json:"carrier,omitempty"`
@@ -95,12 +100,21 @@ func (c *Client) SetClient(client *http.Client) {
 	c.client = client
 }
 
-func (c *Client) Events(msgs []Event) error {
-	msgsJson, err := json.Marshal(msgs)
+func (c *Client) Events(events []Event) error {
+	req := EventRequest{
+		ApiKey: c.key,
+		Events: events,
+	}
+	evJson, err := json.Marshal(req)
 	if err != nil {
 		return err
 	}
-	return c.send(eventEndpoint, "events", string(msgsJson))
+
+	resp, err := c.client.Post(eventEndpoint, "application/json", bytes.NewReader(evJson))
+	if err == nil {
+		resp.Body.Close()
+	}
+	return err
 }
 
 func (c *Client) Event(msg Event) error {
@@ -113,15 +127,11 @@ func (c *Client) Identify(msg Identify) error {
 		return err
 	}
 
-	return c.send(c.identifyEndpoint, "identification", string(msgJson))
-}
-
-func (c *Client) send(endpoint string, key string, value string) error {
 	values := url.Values{}
 	values.Add("api_key", c.key)
-	values.Add(key, value)
+	values.Add("identification", string(msgJson))
 
-	resp, err := c.client.Post(endpoint, "application/json", strings.NewReader(values.Encode()))
+	resp, err := c.client.PostForm(identifyEndpoint, values)
 	if err == nil {
 		resp.Body.Close()
 	}
