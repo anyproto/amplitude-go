@@ -3,9 +3,11 @@ package amplitude
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const eventEndpoint = "https://api2.amplitude.com/2/httpapi"
@@ -110,10 +112,19 @@ func (c *Client) Events(events []Event) error {
 		return err
 	}
 
-	resp, err := c.client.Post(eventEndpoint, "application/json", bytes.NewReader(evJson))
-	if err == nil {
-		resp.Body.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(ctx, "POST", eventEndpoint, bytes.NewReader(evJson))
+	if err != nil {
+		return err
 	}
+
+	r.Header.Set("content-type", "application/json")
+	resp, err := c.client.Do(r)
+	if err == nil {
+		return resp.Body.Close()
+	}
+
 	return err
 }
 
