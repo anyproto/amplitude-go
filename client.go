@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
-const eventEndpoint = "https://api.amplitude.com/httpapi"
+const eventEndpoint = "https://api2.amplitude.com/2/httpapi"
 const identifyEndpoint = "https://api.amplitude.com/identify"
 
 // Client manages the communication to the Amplitude API
@@ -94,13 +95,16 @@ func (c *Client) SetClient(client *http.Client) {
 	c.client = client
 }
 
-func (c *Client) Event(msg Event) error {
-	msgJson, err := json.Marshal(msg)
+func (c *Client) Events(msgs []Event) error {
+	msgsJson, err := json.Marshal(msgs)
 	if err != nil {
 		return err
 	}
+	return c.send(eventEndpoint, "events", string(msgsJson))
+}
 
-	return c.send(c.eventEndpoint, "event", string(msgJson))
+func (c *Client) Event(msg Event) error {
+	return c.Events([]Event{msg})
 }
 
 func (c *Client) Identify(msg Identify) error {
@@ -117,7 +121,7 @@ func (c *Client) send(endpoint string, key string, value string) error {
 	values.Add("api_key", c.key)
 	values.Add(key, value)
 
-	resp, err := c.client.PostForm(endpoint, values)
+	resp, err := c.client.Post(endpoint, "application/json", strings.NewReader(values.Encode()))
 	if err == nil {
 		resp.Body.Close()
 	}
