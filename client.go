@@ -130,6 +130,7 @@ func (c *Client) Events(events []Event) error {
 	}
 
 	r.Header.Set("content-type", "application/json")
+	r.Header.Set("content-encoding", "gzip")
 	resp, err := c.client.Do(r)
 	if err == nil {
 		return resp.Body.Close()
