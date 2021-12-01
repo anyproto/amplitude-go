@@ -3,6 +3,7 @@ package amplitude
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -114,7 +115,16 @@ func (c *Client) Events(events []Event) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	r, err := http.NewRequestWithContext(ctx, "POST", eventEndpoint, bytes.NewReader(evJson))
+	var buf bytes.Buffer
+	g := gzip.NewWriter(&buf)
+	if _, err := g.Write(evJson); err != nil {
+		return err
+	}
+	if err = g.Close(); err != nil {
+		return err
+	}
+
+	r, err := http.NewRequestWithContext(ctx, "POST", eventEndpoint, &buf)
 	if err != nil {
 		return err
 	}
